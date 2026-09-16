@@ -1,0 +1,50 @@
+# workshop101 como Worker de Cloudflare. Mismo molde que master101 (D1, D2).
+#
+# El panel del ADMINISTRADOR DE UNA EMPRESA cliente: su gente, sus roles y a
+# qué apps entra cada quien. Dos Workers con el mismo código:
+# `workshop101-staging`, que habla con la API de staging (ahí vive la org
+# `demo` y las de prueba), y `workshop101`, que habla con la de producción.
+#
+# Las llaves no están aquí ni pueden estarlo: el despliegue lo hace el
+# corredor con los secretos de Actions del repositorio.
+
+name = "workshop101"
+main = "worker/index.js"
+compatibility_date = "2026-09-01"
+
+# La interfaz, tal cual está en `public/`: un HTML, un JS, un CSS y las
+# fuentes. Sin empaquetador. `run_worker_first` deja que `/s101/*` llegue al
+# Worker antes de que los assets contesten con un 404 o con el index.html.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "404-page"
+run_worker_first = ["/s101/*"]
+
+# La API, desde el mismo origen. No hay URL: es un *service binding*, o sea
+# una llamada de Worker a Worker que nunca sale a internet.
+[[services]]
+binding = "API"
+service = "suite101-api"
+
+[observability]
+enabled = true
+
+# ─────────────── staging ───────────────
+# Es donde todo se prueba primero (D5), contra la org `demo` (D6).
+
+[env.staging]
+name = "workshop101-staging"
+
+[env.staging.assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "404-page"
+run_worker_first = ["/s101/*"]
+
+[[env.staging.services]]
+binding = "API"
+service = "suite101-api-staging"
+
+[env.staging.observability]
+enabled = true
