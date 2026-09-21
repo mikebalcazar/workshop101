@@ -48,16 +48,18 @@ export function apiFalsa() {
     ['u-admi', { id: 'u-admi', correo: 'admi@ejemplo.mx', nombre: 'Admi', creado_at: '2026-09-01T00:00:00Z' }],
     ['u-socia', { id: 'u-socia', correo: 'socia@ejemplo.mx', nombre: 'Socia', creado_at: '2026-09-01T00:00:00Z' }],
     ['u-oficina', { id: 'u-oficina', correo: 'oficina@ejemplo.mx', nombre: 'Oficina', creado_at: '2026-09-01T00:00:00Z' }],
+    ['u-fer', { id: 'u-fer', correo: 'fer@ejemplo.mx', nombre: 'Fer', creado_at: '2026-09-01T00:00:00Z' }],
     ['u-cliente', { id: 'u-cliente', correo: 'cliente@ejemplo.mx', nombre: 'Familia Ramírez', creado_at: '2026-09-01T00:00:00Z' }],
   ]);
   const orgs = new Map([
-    ['demo', { id: 'demo', nombre: 'Demo', plan: 'prueba', apps: { dash: true, quell: true, peek: true, cotizador: true, roster: false, nest: false }, moneda: 'MXN', activa: true, creado_at: '2026-09-01T00:00:00Z' }],
+    ['demo', { id: 'demo', nombre: 'Demo', plan: 'prueba', apps: { dash: true, supply: true, quell: true, peek: true, cotizador: true, roster: false, nest: false }, moneda: 'MXN', activa: true, creado_at: '2026-09-01T00:00:00Z' }],
   ]);
   const miembros = new Map([['demo', [
     { org_id: 'demo', usuario_id: 'u-duena', rol: 'owner', apps: [], negocios: [] },
     { org_id: 'demo', usuario_id: 'u-admi', rol: 'admin', apps: [], negocios: [] },
     { org_id: 'demo', usuario_id: 'u-socia', rol: 'socio', apps: ['dash'], negocios: [] },
     { org_id: 'demo', usuario_id: 'u-oficina', rol: 'staff', apps: ['quell', 'peek'], negocios: [] },
+    { org_id: 'demo', usuario_id: 'u-fer', rol: 'admin', apps: ['quell', 'supply'], negocios: [] },
   ]]]);
   const sesiones = new Map();   // cookie → usuario_id
   const codigos = new Map();    // correo → codigo

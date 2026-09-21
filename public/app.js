@@ -19,9 +19,18 @@ const API = '/s101';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-/** Las seis apps de una empresa, con la llave que usa `orgs.apps` en la API. */
+/** Las apps de una empresa, con la llave que usa `orgs.apps` en la API.
+ *
+ *  `supply` se agregó el 21-sep-2026 y no es una app más: es un permiso que
+ *  hay que poder dar SIN dar `dash`. Ésa fue toda la causa del defecto de
+ *  Fer —supply101 se presentaba como dash101, así que pedir una compra
+ *  exigía entrar al tablero del dinero—, y por eso aquí sale con el nombre
+ *  con el que se entiende («Pedir compras») en vez de con el de la app: lo
+ *  que quien administra está decidiendo es quién puede pedir, no qué
+ *  programa abre. */
 export const APPS = [
-  ['dash', 'dash101'], ['quell', 'quell101'], ['peek', 'peek101'],
+  ['dash', 'dash101'], ['supply', 'supply101 (pedir compras)'],
+  ['quell', 'quell101'], ['peek', 'peek101'],
   ['cotizador', 'quote101'], ['roster', 'roster101'], ['nest', 'nest101'],
 ];
 

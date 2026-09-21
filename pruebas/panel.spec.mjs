@@ -195,7 +195,7 @@ async function recorrido(navegador) {
   const correoSocia = CONTRA_STAGING ? 'socia-prueba@ejemplo.mx' : 'socia@ejemplo.mx';
   const correoOficina = CONTRA_STAGING ? 'oficina-prueba@ejemplo.mx' : 'oficina@ejemplo.mx';
   const filas = await pagina.locator('#g-filas tr[data-uid]').count();
-  rev(filas === (CONTRA_STAGING ? 3 : 4), `la tabla trae a la gente de la empresa`, `${filas} filas`);
+  rev(filas === (CONTRA_STAGING ? 3 : 5), `la tabla trae a la gente de la empresa`, `${filas} filas`);
 
   // La socia sólo tiene dash101 palomeada; la administración, todas.
   const cajasSocia = fila(pagina, correoSocia).locator('input[data-app]');
@@ -220,6 +220,38 @@ async function recorrido(navegador) {
   rev(/dash101, quell101/.test(aviso1), 'palomear quell101 a la socia hace PATCH y la API contesta la lista nueva', aviso1);
   const despues = await fila(pagina, correoSocia).locator('input[data-app]').evaluateAll((l) => l.filter((c) => c.checked).map((c) => c.dataset.app));
   rev(JSON.stringify(despues) === '["dash","quell"]', 'la fila se repintó con dash101 y quell101', JSON.stringify(despues));
+
+  /* EL CASO DE FER (21-sep-2026). Hasta ese día esto no se podía ni
+   * configurar: pedir una compra exigía la llave de dash101, así que quien
+   * administra no tenía manera de dejar pedir a alguien sin abrirle el
+   * tablero del dinero. Lo que se revisa aquí es que la casilla exista, que
+   * se pueda palomear sola, y —sobre todo— que palomearla NO prenda `dash`. */
+  if (!CONTRA_STAGING) {
+    const cajasFer = fila(pagina, 'fer@ejemplo.mx').locator('input[data-app]');
+    const deFer = await cajasFer.evaluateAll((l) => l.filter((c) => c.checked).map((c) => c.dataset.app));
+    rev(JSON.stringify(deFer) === '["supply","quell"]' || JSON.stringify(deFer) === '["quell","supply"]',
+        'quien pide compras puede tenerlo SIN el tablero del dinero', JSON.stringify(deFer));
+    rev(!deFer.includes('dash'), 'y pedir compras no arrastra a dash101');
+
+    // Y al revés: la socia tiene dash101 y no pide compras.
+    const deSocia = await fila(pagina, correoSocia).locator('input[data-app]')
+      .evaluateAll((l) => l.filter((c) => c.checked).map((c) => c.dataset.app));
+    rev(!deSocia.includes('supply'), 'ni dash101 arrastra a pedir compras', JSON.stringify(deSocia));
+
+    /* Prenderle a la socia «pedir compras» es una casilla, y sólo esa cambia.
+     * Y se apaga al terminar: el banco falso guarda el estado entre los
+     * recorridos de esta misma corrida, así que una prueba que deja el
+     * mundo movido hace fallar a la siguiente por algo que no es su culpa
+     * —que es justo lo que pasó al escribir esto—. */
+    await fila(pagina, correoSocia).locator('input[data-app="supply"]').check();
+    await esperaAviso(pagina, 'g-aviso', 'entra a');
+    const tras = await fila(pagina, correoSocia).locator('input[data-app]')
+      .evaluateAll((l) => l.filter((c) => c.checked).map((c) => c.dataset.app));
+    rev(tras.includes('supply') && tras.includes('dash') && tras.includes('quell') && tras.length === 3,
+        'y prenderla no toca ninguna otra', JSON.stringify(tras));
+    await fila(pagina, correoSocia).locator('input[data-app="supply"]').uncheck();
+    await esperaAviso(pagina, 'g-aviso', 'entra a');
+  }
 
   // Cambiar rol: oficina → socio.
   await fila(pagina, correoOficina).locator('select.rol').selectOption('socio');
@@ -340,8 +372,19 @@ async function escritorio(navegador) {
   if (CONTRA_STAGING) { await pagina.selectOption('#empresa', ORG); await pagina.waitForFunction((o) => document.getElementById('g-id').textContent.includes(o), ORG, { timeout: 15000 }); }
   await pagina.waitForSelector('#g-filas td.mono', { timeout: 15000 });
   rev((await pagina.locator('#g-tabla thead th').count()) === 6, 'seis columnas: correo, nombre, rol, apps, última entrada y acciones');
-  const prendidas = await pagina.locator('#p-apps input[data-app]').count();
-  rev(prendidas === (CONTRA_STAGING ? 3 : 4), 'el alta ofrece sólo las apps que la empresa tiene prendidas', `${prendidas}`);
+  /* Cuáles son sale de la pantalla misma, no de un número escrito aquí: el
+   * 21-sep agregar `supply` rompió esta línea sin que nada estuviera mal, y
+   * el siguiente que agregue una app se llevaría el mismo susto.
+   *
+   * La referencia es la fila de la administración: tiene la lista vacía, o
+   * sea «todas las de la empresa», así que sus casillas SON las prendidas.
+   * Comparar el alta contra ella es comparar dos lugares de la pantalla que
+   * tienen que decir lo mismo. */
+  const ofrecidas = await pagina.locator('#p-apps input[data-app]').evaluateAll((l) => l.map((c) => c.dataset.app).sort());
+  const enLaFila = await fila(pagina, CONTRA_STAGING ? 'admi-prueba@ejemplo.mx' : 'admi@ejemplo.mx').locator('input[data-app]').evaluateAll((l) => l.map((c) => c.dataset.app).sort());
+  rev(ofrecidas.length > 0 && JSON.stringify(ofrecidas) === JSON.stringify(enLaFila),
+      'el alta ofrece exactamente las apps que la empresa tiene prendidas',
+      `${JSON.stringify(ofrecidas)} vs ${JSON.stringify(enLaFila)}`);
   await sinScroll(pagina, 'la tabla en escritorio');
   rev(errores.length === 0, 'cero errores de JavaScript', errores.slice(0, 2).join(' | '));
   await ctx.close();
