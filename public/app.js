@@ -15,6 +15,8 @@
  * baja); aquí sólo se deshabilita lo que la API va a rechazar, para no
  * ofrecer botones que no sirven. */
 
+import { irA, abrirEncima, alNavegar, sellar } from './navegar.js';
+
 const API = '/s101';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -122,6 +124,34 @@ function mostrar(cual) {
   for (const b of document.querySelectorAll('#menu [data-ir]')) b.classList.toggle('activo', `v-${b.dataset.ir}` === cual);
   window.scrollTo(0, 0);
 }
+
+/* ─────────────── el «atrás» del navegador ───────────────
+ * Mike, 22-sep-2026: «cuando picas el botón de back en el navegador te saca
+ * hasta la página anterior (…). Queremos que cuando picas back te regrese a
+ * la función anterior».
+ *
+ * Aquí lo hondo es el velo de «quitar a alguien»: con él abierto, «atrás»
+ * se llevaba la app entera en vez de cerrarlo. Las dos secciones —gente y
+ * cambios— están al mismo nivel: alternarlas reemplaza la entrada en vez de
+ * apilar escalones que nadie pidió.
+ *
+ * Las pantallas de entrada —correo, contraseña, código— NO entran al
+ * historial a propósito: son pasos de un trámite, no lugares. Si «atrás» los
+ * recorriera, alguien podría caer a media entrada con un código ya gastado y
+ * creer que la app se descompuso. */
+const HONDURA = { seccion: 1 };
+
+function pintarLugar(donde) {
+  // Sin empresa abierta no hay a dónde regresar: si alguien salió y pica
+  // «atrás», la pantalla de entrada se queda donde está en vez de enseñar
+  // algo que la API ya no va a contestar.
+  if (!ORG) return undefined;
+  return donde === 'cambios' ? verCambios() : verGente();
+}
+alNavegar(pintarLugar);
+
+const irAGente = () => irA(HONDURA.seccion, 'gente');
+const irACambios = () => irA(HONDURA.seccion, 'cambios');
 
 function aviso(id, texto, tono = 'mal') {
   const el = $(id);
@@ -376,7 +406,11 @@ async function abrirEmpresa(id) {
     ORG = { id, nombre: mia.nombre, apps: {} };
     aviso('g-aviso', e.message);
   }
-  await irAGente();
+  /* Entrar (o cambiar de empresa) no es meterse más hondo: se sella la
+   * entrada que ya hay. Si apilara, el primer «atrás» del día se quedaría
+   * dando vueltas en la misma pantalla. */
+  sellar(HONDURA.seccion, 'gente');
+  await verGente();
 }
 
 /* ─────────────── gente ─────────────── */
@@ -384,7 +418,7 @@ async function abrirEmpresa(id) {
 const appsPrendidas = () => APPS.filter(([k]) => ORG?.apps?.[k] === true);
 const puedoTocarDuenos = () => MI_ROL === 'owner' || MI_ROL === 'super';
 
-async function irAGente() {
+async function verGente() {
   mostrar('v-gente');
   $('g-id').textContent = `empresa · ${ORG.id}`;
   $('g-nombre').textContent = ORG.nombre;
@@ -517,6 +551,10 @@ $('f-gente').onsubmit = async (ev) => {
 
 /* ─────────────── quitar a alguien: se escribe su correo ─────────────── */
 
+/* Cerrar el velo con el botón de la app y picar «atrás» tienen que hacer lo
+ * mismo. Si el botón nada más lo escondiera, el siguiente «atrás» volvería a
+ * abrir la confirmación que la persona acaba de cancelar. */
+let cerrarVelo = () => { $('velo').hidden = true; porQuitar = null; };
 function pedirConfirmacion(usuario_id, correoDe) {
   porQuitar = { usuario_id, correo: correoDe };
   $('q-empresa').textContent = ORG?.nombre ?? '';
@@ -524,22 +562,27 @@ function pedirConfirmacion(usuario_id, correoDe) {
   $('q-escrito').value = '';
   $('q-quitar').disabled = true;
   $('velo').hidden = false;
+  cerrarVelo = abrirEncima(() => { $('velo').hidden = true; porQuitar = null; });
   $('q-escrito').focus();
 }
 $('q-escrito').oninput = () => { $('q-quitar').disabled = $('q-escrito').value.trim().toLowerCase() !== (porQuitar?.correo ?? '#'); };
-$('q-cancelar').onclick = () => { $('velo').hidden = true; porQuitar = null; };
+$('q-cancelar').onclick = () => cerrarVelo();
 $('q-quitar').onclick = async () => {
   if (!porQuitar) return;
   const b = $('q-quitar'); b.disabled = true; b.textContent = 'Quitando…';
+  /* El correo se guarda antes de cerrar: cerrar el velo es un paso atrás del
+   * navegador, y el navegador avisa cuando quiere, no en la línea siguiente.
+   * Para entonces `porQuitar` ya puede estar vacío y el aviso saldría a
+   * medias. */
+  const quien = porQuitar.correo;
   try {
     await pedir(`/admin/orgs/${encodeURIComponent(ORG.id)}/miembros/${encodeURIComponent(porQuitar.usuario_id)}`, { method: 'DELETE' });
-    $('velo').hidden = true;
-    aviso('g-aviso', `${porQuitar.correo} ya no entra a ${ORG.nombre}.`, 'bien');
-    porQuitar = null;
+    cerrarVelo();
+    aviso('g-aviso', `${quien} ya no entra a ${ORG.nombre}.`, 'bien');
     await Promise.all([cargarGente(), cargarBitacora().catch(() => {})]);
   } catch (e) {
     aviso('g-aviso', e.message);
-    $('velo').hidden = true;
+    cerrarVelo();
   } finally { b.textContent = 'Quitar'; }
 };
 
@@ -553,7 +596,7 @@ async function cargarBitacora() {
   $('c-filas').innerHTML = filasBitacora(BITACORA);
 }
 
-async function irACambios() {
+async function verCambios() {
   mostrar('v-cambios');
   $('c-id').textContent = `${ORG.nombre} · ${ORG.id}`;
   aviso('c-aviso', '');

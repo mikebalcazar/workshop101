@@ -282,6 +282,28 @@ async function recorrido(navegador) {
   // Quitar: el botón abre el diálogo, y sólo con el correo escrito tal cual se habilita.
   await fila(pagina, 'nueva@ejemplo.mx').locator('[data-quitar]').click();
   await pagina.waitForSelector('#velo:not([hidden])');
+
+  /* ── el «atrás» del navegador (Mike, 22-sep-2026) ──
+   * En el escritorio esto se mide contando entradas del historial
+   * (`pruebas/el-atras.mjs`); aquí se mide en un navegador de verdad, que es
+   * donde se sufría: con la confirmación abierta, «atrás» se llevaba la app
+   * entera en vez de cerrarla. */
+  await pagina.goBack();
+  /* `state: 'hidden'` se cumple igual si el elemento ya no existe, así que lo
+   * que de verdad mide esto es la revisada de abajo: que la pantalla de gente
+   * SIGA PUESTA. Con el código de antes, «atrás» se llevaba la página
+   * completa y no quedaba ni velo ni pantalla. */
+  await pagina.waitForSelector('#velo', { state: 'hidden', timeout: 10000 });
+  rev(!(await pagina.locator('#v-gente').isHidden()), 'con el velo abierto, «atrás» lo cierra y deja la app donde estaba');
+  /* Y no lo resucita: dar «adelante» vuelve a la misma pantalla, no a la
+   * confirmación que ya se cerró. */
+  await pagina.goForward();
+  await pagina.waitForTimeout(300);
+  rev(await pagina.locator('#velo').isHidden(), 'y «adelante» no reabre la confirmación');
+  rev(!(await pagina.locator('#v-gente').isHidden()), 'la pantalla de gente sigue puesta');
+
+  await fila(pagina, 'nueva@ejemplo.mx').locator('[data-quitar]').click();
+  await pagina.waitForSelector('#velo:not([hidden])');
   rev(await pagina.locator('#q-quitar').isDisabled(), 'el diálogo de quitar arranca con el botón apagado');
   await pagina.fill('#q-escrito', 'nueva@ejemplo.m');
   rev(await pagina.locator('#q-quitar').isDisabled(), 'con el correo incompleto sigue apagado');
