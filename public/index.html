@@ -150,6 +150,18 @@
   </div>
 </div>
 
+<!-- EDITAR NOMBRE Y CORREO (0.54.2) -->
+<div class="velo" id="velo-editar" hidden>
+  <form class="dialogo" id="f-editar" role="dialog" aria-modal="true" aria-labelledby="e-titulo" novalidate>
+    <h2 id="e-titulo">Editar a esta persona</h2>
+    <p>Su nombre y el correo con el que entra a toda la suite. Si cambias el correo, la próxima vez entra con el nuevo; el viejo deja de servir.</p>
+    <label for="e-nombre">Nombre<input id="e-nombre" autocomplete="off"></label>
+    <label for="e-correo">Correo<input id="e-correo" type="email" autocomplete="off" inputmode="email" autocapitalize="off" spellcheck="false" required></label>
+    <div class="err" id="err-editar"></div>
+    <div class="acciones"><button class="btn suave" type="button" id="e-cancelar">Cancelar</button><button class="btn" type="submit" id="e-guardar">Guardar</button></div>
+  </form>
+</div>
+
 <footer class="pie">workshop101 · el panel del administrador de una empresa en la suite 101</footer>
 
 <script type="module" src="app.js"></script>

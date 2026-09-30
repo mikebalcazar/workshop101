@@ -238,7 +238,7 @@ export function apiFalsa() {
         apunta(yo.correo, m[1], 'miembro', `${correoDe} (${previo.rol})`, null);
         return ok({ quitado: true });
       }
-      if (cuerpo.rol === undefined && cuerpo.apps === undefined) return err('datos_invalidos', 400, { falta: 'rol o apps' });
+      if (cuerpo.rol === undefined && cuerpo.apps === undefined && cuerpo.nombre === undefined && cuerpo.correo === undefined) return err('datos_invalidos', 400, { falta: 'rol, apps, nombre o correo' });
       if (cuerpo.rol !== undefined && !['owner', 'admin', 'socio', 'staff'].includes(cuerpo.rol)) return err('datos_invalidos', 400);
       const rol = cuerpo.rol ?? previo.rol;
       if ((previo.rol === 'owner' || rol === 'owner') && !nombraDuenos(md)) return err('sin_permiso', 403, { motivo: 'solo_un_dueno_toca_duenos' });
@@ -248,8 +248,24 @@ export function apiFalsa() {
       const dicho = (l) => (l.length ? l.join(', ') : 'todas');
       if (rol !== previo.rol) apunta(yo.correo, m[1], 'miembro.rol', `${correoDe} (${previo.rol})`, `${correoDe} (${rol})`);
       if (JSON.stringify(apps.apps) !== JSON.stringify(previo.apps)) apunta(yo.correo, m[1], 'miembro.apps', `${correoDe}: ${dicho(previo.apps)}`, `${correoDe}: ${dicho(apps.apps)}`);
+      // 0.54.2 · nombre y correo, con las mismas reglas que la API de verdad.
+      const u = usuarios.get(m[2]);
+      let nombreNuevo, correoNuevo;
+      if (cuerpo.nombre !== undefined) nombreNuevo = cuerpo.nombre === null ? null : String(cuerpo.nombre).trim().slice(0, 120) || null;
+      if (cuerpo.correo !== undefined) {
+        const nuevo = String(cuerpo.correo).trim().toLowerCase();
+        if (!/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(nuevo)) return err('datos_invalidos', 400, { correo: 'invalido' });
+        if (nuevo !== u.correo) {
+          if ([...usuarios.values()].some((x) => x.id !== u.id && x.correo === nuevo)) return err('correo_en_uso', 409, { correo: nuevo });
+          const otras = [...miembros].filter(([org_id, lista]) => org_id !== m[1] && lista.some((x) => x.usuario_id === u.id)).map(([org_id]) => orgs.get(org_id)?.nombre ?? org_id);
+          if (otras.length) return err('cuenta_compartida', 409, { empresas: otras, superadmin: false });
+          correoNuevo = nuevo;
+        }
+      }
       previo.rol = rol; previo.apps = apps.apps;
-      return ok({ usuario_id: m[2], correo: correoDe, rol, apps: apps.apps });
+      if (nombreNuevo !== undefined && nombreNuevo !== u.nombre) { apunta(yo.correo, m[1], 'miembro.nombre', `${u.correo}: ${u.nombre ?? '—'}`, `${u.correo}: ${nombreNuevo ?? '—'}`); u.nombre = nombreNuevo; }
+      if (correoNuevo !== undefined) { apunta(yo.correo, m[1], 'miembro.correo', u.correo, correoNuevo); u.correo = correoNuevo; }
+      return ok({ usuario_id: m[2], correo: u.correo, nombre: u.nombre, rol, apps: apps.apps });
     }
     if (!superadmin) return err('sin_permiso', 403);
     return err('no_encontrado', 404);
