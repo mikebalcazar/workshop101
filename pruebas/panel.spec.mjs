@@ -259,6 +259,37 @@ async function recorrido(navegador) {
   rev(true, 'cambiar el rol de oficina a socio hace PATCH y se dice');
   rev(await fila(pagina, correoOficina).locator('select.rol').inputValue() === 'socio', 'y el selector queda en socio');
 
+  /* Editar nombre y correo (0.54.2; Mike, 30-sep-2026). El velo abre con
+   * lo que hay, se guarda por PATCH y la fila se repinta con lo que la API
+   * contesta. Se deja como estaba al final: el banco falso guarda el estado
+   * entre los recorridos de la misma corrida. */
+  const correoEditado = correoOficina.replace('@', '.editada@');
+  await fila(pagina, correoOficina).locator('[data-editar]').click();
+  await pagina.waitForSelector('#velo-editar:not([hidden])');
+  rev((await pagina.inputValue('#e-correo')) === correoOficina, 'el velo de editar abre con el correo de la persona', await pagina.inputValue('#e-correo'));
+  await pagina.fill('#e-correo', 'sin-arroba');
+  await pagina.click('#e-guardar');
+  rev(/correo válido/.test(await pagina.locator('#err-editar').innerText()), 'un correo mal escrito se detiene en el velo');
+  await pagina.fill('#e-correo', correoAdmi);
+  await pagina.click('#e-guardar');
+  await pagina.waitForFunction(() => document.getElementById('err-editar').textContent.length > 0, null, { timeout: 15000 });
+  rev(/otra cuenta/.test(await pagina.locator('#err-editar').innerText()), 'el correo de otra cuenta lo rechaza la API y el velo lo dice', await pagina.locator('#err-editar').innerText());
+  await pagina.fill('#e-nombre', 'Oficina Editada');
+  await pagina.fill('#e-correo', correoEditado);
+  await pagina.click('#e-guardar');
+  await esperaAviso(pagina, 'g-aviso', 'quedó guardado');
+  await pagina.waitForSelector(`#g-filas tr[data-uid]:has-text("${correoEditado}")`, { timeout: 15000 });
+  rev((await fila(pagina, correoEditado).locator('td').nth(1).innerText()) === 'Oficina Editada', 'la fila se repintó con el nombre y el correo nuevos');
+  rev((await pagina.locator(`#g-filas tr[data-uid]:has-text("${correoOficina}")`).count()) === 0, 'y el correo viejo ya no está en la tabla');
+  await fila(pagina, correoEditado).locator('[data-editar]').click();
+  await pagina.waitForSelector('#velo-editar:not([hidden])');
+  await pagina.fill('#e-nombre', CONTRA_STAGING ? correoOficina.split('@')[0] : 'Oficina');
+  await pagina.fill('#e-correo', correoOficina);
+  await pagina.click('#e-guardar');
+  await esperaAviso(pagina, 'g-aviso', 'quedó guardado');
+  await pagina.waitForSelector(`#g-filas tr[data-uid]:has-text("${correoOficina}")`, { timeout: 15000 });
+  rev(true, 'y se regresa a como estaba');
+
   // Alta: alguien nuevo de oficina, sólo con peek101.
   await pagina.fill('#p-correo', 'nueva@ejemplo.mx');
   await pagina.fill('#p-nombre', 'Nueva');

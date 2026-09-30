@@ -51,6 +51,8 @@ const ERRORES = {
   sin_respuesta: 'La API no contestó. Vuelve a intentar.',
   ultimo_owner: 'Es el último dueño de la empresa: no se puede bajar ni cambiar de rol. Nombra a otro dueño primero.',
   no_encontrado: 'Esa persona ya no está en la empresa.',
+  correo_en_uso: 'Ese correo ya es de otra cuenta de la suite.',
+  cuenta_compartida: 'Esa cuenta también es de otra empresa: el correo se cambia desde esa empresa, o desde la suite. El nombre sí se puede.',
   google_no_configurado: 'Entrar con Google todavía no está prendido. Entra con tu correo.',
   origen_no_permitido: 'Esta dirección no está dada de alta para entrar con Google. Entra con tu correo.',
   entrada_invalida: 'El boleto de Google ya no sirve. Vuelve a intentar.',
@@ -91,7 +93,7 @@ function cuando(iso) {
 }
 
 /** Cómo se lee un renglón de la bitácora de la empresa. */
-const CAMPOS = { creada: 'Se creó la empresa', nombre: 'Nombre', plan: 'Plan', moneda: 'Moneda', activa: 'Activa', miembro: 'Gente', 'miembro.rol': 'Rol', 'miembro.apps': 'Apps' };
+const CAMPOS = { creada: 'Se creó la empresa', nombre: 'Nombre', plan: 'Plan', moneda: 'Moneda', activa: 'Activa', miembro: 'Gente', 'miembro.rol': 'Rol', 'miembro.apps': 'Apps', 'miembro.nombre': 'Nombre', 'miembro.correo': 'Correo' };
 function campoLegible(campo) {
   if (campo.startsWith('apps.')) { const k = campo.slice(5); const app = APPS.find(([a]) => a === k); return `App ${app ? app[1] : k}`; }
   return CAMPOS[campo] || campo;
@@ -474,13 +476,61 @@ function pintarGente() {
       <td><select class="rol" data-uid="${esc(m.usuario_id)}"${cerrada ? ' disabled' : ''}>${roles.map((r) => `<option value="${r}"${r === m.rol ? ' selected' : ''}>${ROLES[r] ?? r}</option>`).join('')}</select></td>
       <td><div class="apps-fila">${prendidas.map(([k, n]) => `<label><input type="checkbox" data-uid="${esc(m.usuario_id)}" data-app="${k}"${todas || m.apps.includes(k) ? ' checked' : ''}${cerrada ? ' disabled' : ''}> ${n}</label>`).join('')}${!prendidas.length ? '<span class="nota">—</span>' : ''}</div></td>
       <td class="fecha">${m.ultima_entrada ? esc(cuando(m.ultima_entrada)) : 'nadie aún'}</td>
-      <td>${cerrada ? '' : `<button class="btn suave chico" data-quitar="${esc(m.usuario_id)}" data-correo="${esc(m.correo)}">Quitar</button>`}</td>
+      <td>${cerrada ? '' : `<div class="acciones"><button class="btn suave chico" data-editar="${esc(m.usuario_id)}">Editar</button><button class="btn suave chico" data-quitar="${esc(m.usuario_id)}" data-correo="${esc(m.correo)}">Quitar</button></div>`}</td>
     </tr>`;
   }).join('');
   for (const sel of $('g-filas').querySelectorAll('select.rol')) sel.onchange = () => cambiarRol(sel);
   for (const caja of $('g-filas').querySelectorAll('input[data-app]')) caja.onchange = () => cambiarApps(caja.dataset.uid);
   for (const b of $('g-filas').querySelectorAll('[data-quitar]')) b.onclick = () => pedirConfirmacion(b.dataset.quitar, b.dataset.correo);
+  for (const b of $('g-filas').querySelectorAll('[data-editar]')) b.onclick = () => abrirEditar(b.dataset.editar);
 }
+
+/* ─────────────── editar nombre y correo (0.54.2) ───────────────
+ * Mike, 30-sep-2026: «quiero editar los datos de un integrante de la
+ * empresa. Pero ahorita no puedo». El rol y las apps ya se cambiaban en la
+ * fila; el nombre y el correo, no. Van en un velo aparte porque el correo
+ * es con el que la persona entra a toda la suite: no es un renglón que se
+ * toque sin querer. Lo que la API rechaza (un correo de otra cuenta, una
+ * cuenta que también es de otra empresa) se dice con palabras en el velo. */
+let editando = null;
+let cerrarEditar = () => { $('velo-editar').hidden = true; editando = null; };
+function abrirEditar(uid) {
+  const m = GENTE.find((x) => x.usuario_id === uid);
+  if (!m) return;
+  editando = m;
+  $('e-nombre').value = m.nombre ?? '';
+  $('e-correo').value = m.correo;
+  $('err-editar').textContent = '';
+  $('e-guardar').disabled = false; $('e-guardar').textContent = 'Guardar';
+  $('velo-editar').hidden = false;
+  cerrarEditar = abrirEncima(() => { $('velo-editar').hidden = true; editando = null; });
+  $('e-nombre').focus();
+}
+$('e-cancelar').onclick = () => cerrarEditar();
+$('f-editar').onsubmit = async (ev) => {
+  ev.preventDefault();
+  if (!editando) return;
+  const nombre = $('e-nombre').value.trim();
+  const c = $('e-correo').value.trim().toLowerCase();
+  if (!/^\S+@\S+\.\S+$/.test(c)) { $('err-editar').textContent = 'Escribe un correo válido.'; return; }
+  const cambios = {};
+  if (nombre !== (editando.nombre ?? '')) cambios.nombre = nombre || null;
+  if (c !== editando.correo) cambios.correo = c;
+  if (!Object.keys(cambios).length) { cerrarEditar(); return; }
+  $('err-editar').textContent = '';
+  const uid = editando.usuario_id;
+  const b = $('e-guardar'); b.disabled = true; b.textContent = 'Guardando…';
+  try {
+    const d = await pedir(`/admin/orgs/${encodeURIComponent(ORG.id)}/miembros/${encodeURIComponent(uid)}`, { method: 'PATCH', body: cambios });
+    cerrarEditar();
+    reemplaza(uid, { nombre: d.nombre ?? null, correo: d.correo });
+    aviso('g-aviso', cambios.correo ? `${d.correo} quedó guardado; con ese correo entra de ahora en adelante.` : `${d.correo} ahora se llama ${d.nombre || '—'}.`, 'bien');
+    await Promise.all([cargarGente(), cargarBitacora().catch(() => {})]);
+  } catch (e) {
+    $('err-editar').textContent = e.message;
+    b.disabled = false; b.textContent = 'Guardar';
+  }
+};
 
 function reemplaza(uid, cambios) {
   GENTE = GENTE.map((m) => (m.usuario_id === uid ? { ...m, ...cambios } : m));
