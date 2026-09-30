@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "banco": "node pruebas/servidor.mjs --falso",
-    "prueba": "node pruebas/dominio.mjs && node pruebas/el-atras.mjs && node pruebas/panel.spec.mjs",
+    "prueba": "node pruebas/dominio.mjs && node pruebas/el-atras.mjs && node pruebas/panel.spec.mjs && node pruebas/la-version-nueva.mjs",
     "medir": "node scripts/medir.mjs"
   },
   "devDependencies": {
