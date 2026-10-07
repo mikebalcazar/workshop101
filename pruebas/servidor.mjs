@@ -64,7 +64,7 @@ export function apiFalsa() {
   const sesiones = new Map();   // cookie → usuario_id
   const codigos = new Map();    // correo → codigo
   const accesos = new Map([['u-cliente', { org_id: 'demo', tipo: 'cliente', ref_id: 'c1' }]]);
-  const LLAVE = { dash101: 'dash', quell101: 'quell', peek101: 'peek', cotizador101: 'cotizador', roster101: 'roster', nest101: 'nest' };
+  const LLAVE = { dash101: 'dash', quell101: 'quell', peek101: 'peek', cotizador101: 'cotizador', cost101: 'cost', roster101: 'roster', nest101: 'nest' };
   const PANELES = new Set(['master101', 'workshop101', 'suite101']);
   const supers = new Set();
   const boletos = new Map();   // boleto de Google → cookie de sesión, un solo uso
