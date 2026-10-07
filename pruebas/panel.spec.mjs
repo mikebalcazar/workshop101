@@ -443,6 +443,68 @@ async function escritorio(navegador) {
   await ctx.close();
 }
 
+/* ─────────────── los datos de la empresa y su logotipo (API 0.80.0) ───────────────
+ * Mike, 7-oct-2026: «yo debo subir en la configuración de la empresa (en
+ * director) el logotipo en PNG (…) y que ese sea el que se ocupe para todos
+ * los documentos». Se mide en un celular: escribir el contacto, guardarlo y
+ * que vuelva igual; subir un PNG y verlo pintado (servido por la API, no un
+ * preview local); que lo que no es imagen no se suba; y quitarlo en dos
+ * piquetes. */
+
+const PNG_1PX = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+
+async function empresa(navegador) {
+  console.log(`\n== la empresa y su logotipo (390 × 844) ==`);
+  const { ctx, pagina, errores } = await contexto(navegador, 390, 844);
+  await entrarEnPantalla(pagina, CONTRA_STAGING ? SUPER : 'duena@ejemplo.mx');
+  await pagina.waitForSelector('#v-gente:not([hidden])', { timeout: 20000 });
+  if (CONTRA_STAGING) { await pagina.selectOption('#empresa', ORG); await pagina.waitForFunction((o) => document.getElementById('g-id').textContent.includes(o), ORG, { timeout: 15000 }); }
+  await pagina.click('#menu [data-ir="empresa"]');
+  await pagina.waitForSelector('#v-empresa:not([hidden])');
+  await pagina.waitForFunction(() => document.getElementById('em-nombre').value !== '', null, { timeout: 15000 });
+  rev(await pagina.locator('#logo-vacio').isVisible(), 'sin logotipo todavía, lo dice');
+
+  await pagina.fill('#em-correo', 'info@taller101.com');
+  await pagina.fill('#em-telefono', '+52 55-2951-7900');
+  await pagina.fill('#em-sitio', 'www.taller101.com');
+  await pagina.fill('#em-direccion', 'Ciudad de México');
+  await pagina.click('#b-empresa');
+  await esperaAviso(pagina, 'em-aviso', 'Guardado');
+  // Se vuelve a leer de la API: lo que se ve tiene que ser lo que quedó.
+  await pagina.click('#menu [data-ir="cambios"]');
+  await pagina.waitForSelector('#v-cambios:not([hidden])');
+  await pagina.click('#menu [data-ir="empresa"]');
+  await pagina.waitForFunction(() => document.getElementById('em-telefono').value === '+52 55-2951-7900', null, { timeout: 15000 });
+  rev(await pagina.inputValue('#em-correo') === 'info@taller101.com' && await pagina.inputValue('#em-sitio') === 'www.taller101.com', 'el contacto se guarda y regresa de la API igual');
+
+  await pagina.fill('#em-nombre', '');
+  await pagina.click('#b-empresa');
+  rev(/nombre/.test(await pagina.locator('#err-empresa').innerText()), 'sin nombre no se guarda, y dice por qué');
+  await pagina.click('#menu [data-ir="cambios"]');
+  await pagina.click('#menu [data-ir="empresa"]');
+  await pagina.waitForFunction(() => document.getElementById('em-nombre').value !== '', null, { timeout: 15000 });
+
+  await pagina.setInputFiles('#logo-archivo', { name: 'notas.txt', mimeType: 'text/plain', buffer: Buffer.from('no soy imagen') });
+  await esperaAviso(pagina, 'em-aviso', 'PNG');
+  rev(await pagina.locator('#logo-img').isHidden(), 'un archivo que no es imagen no se sube');
+
+  await pagina.setInputFiles('#logo-archivo', { name: 'logo.png', mimeType: 'image/png', buffer: PNG_1PX });
+  await esperaAviso(pagina, 'em-aviso', 'Listo');
+  await pagina.waitForFunction(() => { const i = document.getElementById('logo-img'); return !i.hidden && i.complete && i.naturalWidth > 0; }, null, { timeout: 15000 });
+  const src = await pagina.locator('#logo-img').getAttribute('src');
+  rev(/^\/s101\/orgs\/[^/]+\/empresa\/logo\?v=/.test(src), 'el logotipo se pinta desde la API', src);
+  rev(await pagina.locator('#logo-quitar').isVisible(), 'y ofrece quitarlo');
+  await sinScroll(pagina, 'la empresa en un celular');
+
+  await pagina.click('#logo-quitar');
+  rev(/Seguro/.test(await pagina.locator('#logo-quitar').innerText()) && await pagina.locator('#logo-img').isVisible(), 'el primer piquete sólo pregunta');
+  await pagina.click('#logo-quitar');
+  await esperaAviso(pagina, 'em-aviso', 'Se quitó');
+  rev(await pagina.locator('#logo-img').isHidden() && await pagina.locator('#logo-vacio').isVisible(), 'el segundo lo quita');
+  rev(errores.length === 0, 'cero errores de JavaScript', errores.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
 /* ─────────────── entrar con Google ─────────────── */
 
 async function google(navegador) {
@@ -502,6 +564,7 @@ try {
   await recorrido(navegador);
   await administracion(navegador);
   await escritorio(navegador);
+  await empresa(navegador);
   await control(navegador);
   await google(navegador);
   await yoLento(navegador);

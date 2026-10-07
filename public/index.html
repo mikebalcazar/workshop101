@@ -18,6 +18,7 @@
   <nav class="menu" id="menu" hidden>
     <button data-ir="gente" class="activo">Gente</button>
     <button data-ir="cambios">Cambios</button>
+    <button data-ir="empresa">Empresa</button>
     <label class="empresa-sel" id="empresa-sel" hidden><span>Empresa</span><select id="empresa"></select></label>
   </nav>
   <div class="quien" id="quien" hidden><span id="quien-n"></span><button id="salir">Salir</button></div>
@@ -137,6 +138,45 @@
     <thead><tr><th>Cuándo</th><th>Quién</th><th>Qué</th><th>Antes</th><th>Después</th></tr></thead>
     <tbody id="c-filas"></tbody>
   </table></div>
+</main>
+
+<!-- EMPRESA · lo que sale en los documentos (API 0.80.0).
+     Mike, 7-oct-2026: «yo debo subir en la configuración de la empresa (en
+     director) el logotipo en PNG en una buena resolución y que ese sea el que
+     se ocupe para todos los documentos que se generan en suite101». El nombre
+     y el contacto también se ponen aquí, y en las demás apps sólo se leen. -->
+<main class="wrap" id="v-empresa" hidden>
+  <div class="cab"><div><p class="eyebrow" id="em-id"></p><h1>Datos de la empresa</h1><div class="sub">Lo que sale en los documentos que hace la suite —cotizaciones, PDFs, estados de cuenta—: el logotipo, el nombre y cómo contactarlos. Se cambia sólo aquí; las demás apps lo leen.</div></div></div>
+  <div class="aviso" id="em-aviso" hidden></div>
+
+  <h2 class="h2">Logotipo</h2>
+  <div class="logo-zona">
+    <div class="logo-caja"><img id="logo-img" alt="El logotipo de la empresa" hidden><span id="logo-vacio" class="nota">Todavía no hay logotipo.</span></div>
+    <div class="logo-lado">
+      <label class="soltar" id="logo-soltar" for="logo-archivo" tabindex="0">
+        <b>Arrastra aquí el logotipo</b> o pégalo, o <u>escógelo de una carpeta</u>
+        <input type="file" id="logo-archivo" accept="image/png,image/jpeg">
+      </label>
+      <p class="nota">PNG con fondo transparente y buena resolución (unos 1200 px de ancho); hasta 5 MB. También sirve JPG.</p>
+      <div class="acciones"><button class="btn suave" type="button" id="logo-quitar" hidden>Quitar el logotipo</button></div>
+    </div>
+  </div>
+
+  <h2 class="h2">Nombre y contacto</h2>
+  <form class="forma" id="f-empresa" novalidate>
+    <div class="dos">
+      <label for="em-nombre">Nombre<input id="em-nombre" autocomplete="organization" required></label>
+      <label for="em-rfc">RFC <span class="opc">(opcional)</span><input id="em-rfc" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="13"></label>
+    </div>
+    <div class="tres">
+      <label for="em-correo">Correo<input id="em-correo" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" maxlength="120"></label>
+      <label for="em-telefono">Teléfono<input id="em-telefono" type="tel" inputmode="tel" autocomplete="tel" maxlength="60"></label>
+      <label for="em-sitio">Sitio web<input id="em-sitio" inputmode="url" autocapitalize="off" spellcheck="false" maxlength="120" placeholder="www.tuempresa.com"></label>
+    </div>
+    <label for="em-direccion">Dirección <span class="opc">(opcional)</span><textarea id="em-direccion" rows="2" maxlength="300"></textarea></label>
+    <div class="err" id="err-empresa"></div>
+    <div class="acciones"><button class="btn" type="submit" id="b-empresa">Guardar</button></div>
+  </form>
 </main>
 
 <!-- CONFIRMAR QUITAR A ALGUIEN -->
