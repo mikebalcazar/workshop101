@@ -34,7 +34,12 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
 export const APPS = [
   ['dash', 'dash101'], ['supply', 'supply101 (pedir compras)'],
   ['quell', 'quell101'], ['peek', 'peek101'],
-  ['cotizador', 'quote101'], ['roster', 'roster101'], ['nest', 'nest101'],
+  /* cost101 (7-oct-2026): los costos de obra. Sólo sale en la empresa que la
+   * tiene prendida (licencia propia, se prende en master101): la lista de
+   * abajo se recorta con las apps de la empresa (`appsPrendidas`). Quien entra
+   * ve lo que la empresa PAGA por material y mano de obra; por eso se da
+   * persona por persona. */
+  ['cotizador', 'quote101'], ['cost', 'cost101 (costos de obra)'], ['roster', 'roster101'], ['nest', 'nest101'],
 ];
 
 const ROLES = { owner: 'dueño', admin: 'administración', socio: 'socio', staff: 'oficina' };

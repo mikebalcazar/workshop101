@@ -434,6 +434,10 @@ async function escritorio(navegador) {
    * Comparar el alta contra ella es comparar dos lugares de la pantalla que
    * tienen que decir lo mismo. */
   const ofrecidas = await pagina.locator('#p-apps input[data-app]').evaluateAll((l) => l.map((c) => c.dataset.app).sort());
+  /* cost101 (7-oct-2026) es una app con licencia: la empresa de esta prueba no
+   * la tiene prendida, así que NO se ofrece para repartir. Si saliera, alguien
+   * le «daría» a su gente una app que la empresa no tiene. */
+  rev(!ofrecidas.includes('cost'), 'cost101 no se ofrece en una empresa que no la tiene prendida', JSON.stringify(ofrecidas));
   const enLaFila = await fila(pagina, CONTRA_STAGING ? 'admi-prueba@ejemplo.mx' : 'admi@ejemplo.mx').locator('input[data-app]').evaluateAll((l) => l.map((c) => c.dataset.app).sort());
   rev(ofrecidas.length > 0 && JSON.stringify(ofrecidas) === JSON.stringify(enLaFila),
       'el alta ofrece exactamente las apps que la empresa tiene prendidas',
