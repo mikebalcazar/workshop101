@@ -82,7 +82,14 @@ export function apiFalsa() {
   const miembroDe = (org_id, uid) => (miembros.get(org_id) || []).find((x) => x.usuario_id === uid) || null;
   const cuentaOwners = (org_id) => (miembros.get(org_id) || []).filter((x) => x.rol === 'owner').length;
 
-  return async function atender(metodo, ruta, cabeceras, cuerpo) {
+  // La empresa (API 0.80.0): lo que sale en los documentos, y su logotipo.
+  const empresas = new Map([['demo', { id: 'empresa', nombre: 'Demo', rfc: null, moneda: 'MXN', dia_conciliacion: 1, correo: null, telefono: null, sitio_web: null, direccion: null, logo: null, logo_at: null }]]);
+  const formaEmpresa = (org_id) => {
+    const { logo, logo_at, ...e } = empresas.get(org_id);
+    return { ...e, logo_ruta: logo ? `/orgs/${org_id}/empresa/logo?v=${encodeURIComponent(logo_at)}` : null };
+  };
+
+  return async function atender(metodo, ruta, cabeceras, cuerpo, crudo = Buffer.alloc(0)) {
     const galleta = (cabeceras.cookie || '').split(';').map((s) => s.trim()).find((s) => s.startsWith('s101='))?.slice(5);
     const uid = galleta ? sesiones.get(galleta) : null;
     const app = cabeceras['x-app'] || '';
@@ -167,6 +174,35 @@ export function apiFalsa() {
       if (mm && !esPanel && mm.apps.length > 0 && !mm.apps.includes(LLAVE[app])) return err('app_no_permitida', 403, { app, permitidas: mm.apps });
       if (app === 'workshop101' && !(superadmin || (mm && (mm.rol === 'owner' || mm.rol === 'admin')))) return err('sin_permiso', 403, { motivo: 'solo_administra', org: o.id });
       if (!m[2] || m[2] === '/') return ok({ id: o.id, nombre: o.nombre, apps: o.apps, moneda: o.moneda });
+      const dirige = superadmin || (mm && (mm.rol === 'owner' || mm.rol === 'admin'));
+      if (m[2] === '/empresa' && metodo === 'GET') return ok(formaEmpresa(o.id));
+      if (m[2] === '/empresa' && metodo === 'PATCH') {
+        if (!dirige) return err('sin_permiso', 403);
+        const e = empresas.get(o.id);
+        if (cuerpo.nombre !== undefined) { const n = String(cuerpo.nombre).trim(); if (!n) return err('datos_invalidos', 400, { falta: 'nombre' }); e.nombre = n; }
+        if (cuerpo.rfc !== undefined) e.rfc = String(cuerpo.rfc ?? '').trim().toUpperCase() || null;
+        for (const [k, tope] of [['correo', 120], ['telefono', 60], ['sitio_web', 120], ['direccion', 300]]) {
+          if (cuerpo[k] === undefined) continue;
+          const v = String(cuerpo[k] ?? '').trim();
+          if (v.length > tope) return err('datos_invalidos', 400, { campo: k, maximo: tope });
+          e[k] = v || null;
+        }
+        return ok(formaEmpresa(o.id));
+      }
+      if (m[2] === '/empresa/logo') {
+        const e = empresas.get(o.id);
+        if (metodo === 'GET') return e.logo ? { estado: 200, bytes: e.logo.bytes, cabeceras: { 'Content-Type': e.logo.tipo } } : err('no_encontrado', 404);
+        if (!dirige) return err('sin_permiso', 403);
+        if (metodo === 'DELETE') { e.logo = null; e.logo_at = null; return ok(formaEmpresa(o.id)); }
+        if (metodo === 'PUT') {
+          const b = crudo;
+          const tipo = b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47 ? 'image/png'
+            : b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff ? 'image/jpeg' : null;
+          if (!tipo || b.length > 5 * 1024 * 1024) return err('datos_invalidos', 400, { campo: 'imagen' });
+          e.logo = { bytes: Buffer.from(b), tipo }; e.logo_at = new Date().toISOString();
+          return ok(formaEmpresa(o.id));
+        }
+      }
       return ok({ org: o.id, ruta: m[2] });
     }
 
@@ -304,8 +340,9 @@ const servidor = createServer(async (pet, res) => {
       let cuerpo = {};
       try { cuerpo = crudo.length ? JSON.parse(crudo.toString('utf8')) : {}; } catch { cuerpo = {}; }
       // El Worker de verdad sobrescribe X-App: aquí se hace lo mismo.
-      const r = await atender(pet.method, ruta, { ...pet.headers, 'x-app': 'workshop101' }, cuerpo);
+      const r = await atender(pet.method, ruta, { ...pet.headers, 'x-app': 'workshop101' }, cuerpo, crudo);
       const salida = { ...r.cabeceras };
+      if (r.bytes) { res.writeHead(r.estado, salida); res.end(r.bytes); return; }
       if (salida['Set-Cookie']) salida['Set-Cookie'] = salida['Set-Cookie'].replace(/;\s*Secure/gi, '').replace(/SameSite=None/gi, 'SameSite=Lax');
       if (r.html) { res.writeHead(r.estado, { ...salida, 'Content-Type': 'text/html; charset=utf-8' }); res.end(r.html); return; }
       res.writeHead(r.estado, { ...salida, 'Content-Type': 'application/json' });

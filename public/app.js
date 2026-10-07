@@ -1,9 +1,10 @@
 /* workshop101 — el panel del administrador de una empresa cliente.
  *
  * Quien entra es el dueño o la administración de su empresa (o el superadmin
- * de la suite, que ve todas). Dos pantallas sobre rutas que la API ya tiene
- * desde el contrato 0.6.0: la gente (rol y apps por persona, alta, baja) y la
- * bitácora de cambios de la empresa.
+ * de la suite, que ve todas). Tres pantallas: la gente (rol y apps por
+ * persona, alta, baja), la bitácora de cambios de la empresa (contrato 0.6.0)
+ * y los datos de la empresa con su logotipo (0.80.0), que salen en todos los
+ * documentos de la suite.
  *
  * Todo pasa por `/s101/*`, que el Worker reenvía a `suite101-api` desde este
  * mismo origen (decisión D1). El Worker pone `X-App: workshop101`; aquí no se
@@ -120,7 +121,7 @@ let MI_ROL = null;      // 'owner' | 'admin' | 'super'
 let GENTE = [];         // lo último que contestó GET /admin/orgs/:o/miembros
 let porQuitar = null;
 let correo = '';
-const VISTAS = ['v-correo', 'v-clave', 'v-codigo', 'v-nueva', 'v-nomanda', 'v-cargando', 'v-gente', 'v-cambios'];
+const VISTAS = ['v-correo', 'v-clave', 'v-codigo', 'v-nueva', 'v-nomanda', 'v-cargando', 'v-gente', 'v-cambios', 'v-empresa'];
 function mostrar(cual) {
   for (const v of VISTAS) $(v).hidden = v !== cual;
   for (const b of document.querySelectorAll('#menu [data-ir]')) b.classList.toggle('activo', `v-${b.dataset.ir}` === cual);
@@ -148,12 +149,13 @@ function pintarLugar(donde) {
   // «atrás», la pantalla de entrada se queda donde está en vez de enseñar
   // algo que la API ya no va a contestar.
   if (!ORG) return undefined;
-  return donde === 'cambios' ? verCambios() : verGente();
+  return donde === 'cambios' ? verCambios() : donde === 'empresa' ? verEmpresa() : verGente();
 }
 alNavegar(pintarLugar);
 
 const irAGente = () => irA(HONDURA.seccion, 'gente');
 const irACambios = () => irA(HONDURA.seccion, 'cambios');
+const irAEmpresa = () => irA(HONDURA.seccion, 'empresa');
 
 function aviso(id, texto, tono = 'mal') {
   const el = $(id);
@@ -654,8 +656,108 @@ async function verCambios() {
   try { await cargarBitacora(); } catch (e) { $('c-filas').innerHTML = ''; aviso('c-aviso', e.message); }
 }
 
+/* ─────────────── empresa: lo que sale en los documentos (API 0.80.0) ───────────────
+ * Mike, 7-oct-2026, con la hoja de quote101 enfrente: «yo debo subir en la
+ * configuración de la empresa (en director) el logotipo en PNG en una buena
+ * resolución y que ese sea el que se ocupe para todos los documentos que se
+ * generan en suite101. Lo rojo [nombre y contacto] debería ser también info
+ * que se configura desde director101, no debería poder editarse aquí».
+ *
+ * Aquí se escribe; quote101 y las demás sólo lo leen de `GET /empresa`. El
+ * logotipo viaja tal cual (la API mira que sea PNG o JPG de verdad) y se
+ * repinta con la ruta que la API contesta, que cambia con cada logotipo. */
+
+const CAMPOS_EMPRESA = [['em-nombre', 'nombre'], ['em-rfc', 'rfc'], ['em-correo', 'correo'], ['em-telefono', 'telefono'], ['em-sitio', 'sitio_web'], ['em-direccion', 'direccion']];
+const LOGO_MAX = 5 * 1024 * 1024;
+
+function pintarEmpresa(e) {
+  for (const [id, k] of CAMPOS_EMPRESA) $(id).value = e[k] ?? '';
+  const img = $('logo-img');
+  if (e.logo_ruta) { img.src = `${API}${e.logo_ruta}`; img.hidden = false; $('logo-vacio').hidden = true; $('logo-quitar').hidden = false; }
+  else { img.removeAttribute('src'); img.hidden = true; $('logo-vacio').hidden = false; $('logo-quitar').hidden = true; }
+  $('logo-quitar').textContent = 'Quitar el logotipo';
+  delete $('logo-quitar').dataset.seguro;
+}
+
+async function verEmpresa() {
+  mostrar('v-empresa');
+  $('em-id').textContent = `${ORG.nombre} · ${ORG.id}`;
+  aviso('em-aviso', '');
+  $('err-empresa').textContent = '';
+  try { pintarEmpresa(await pedir(`/orgs/${encodeURIComponent(ORG.id)}/empresa`)); }
+  catch (e) { aviso('em-aviso', e.message); }
+}
+
+$('f-empresa').onsubmit = async (ev) => {
+  ev.preventDefault();
+  $('err-empresa').textContent = '';
+  const cuerpo = {};
+  for (const [id, k] of CAMPOS_EMPRESA) cuerpo[k] = $(id).value.trim();
+  if (!cuerpo.nombre) { $('err-empresa').textContent = 'La empresa necesita un nombre: es el que sale en los documentos.'; return; }
+  if (cuerpo.correo && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cuerpo.correo)) { $('err-empresa').textContent = 'Ese correo no se ve completo.'; return; }
+  const b = $('b-empresa');
+  b.disabled = true; b.textContent = 'Guardando…';
+  try {
+    pintarEmpresa(await pedir(`/orgs/${encodeURIComponent(ORG.id)}/empresa`, { method: 'PATCH', body: cuerpo }));
+    aviso('em-aviso', 'Guardado. Así sale en los documentos nuevos de la suite.', 'bien');
+  } catch (e) {
+    $('err-empresa').textContent = e.message;
+  } finally { b.disabled = false; b.textContent = 'Guardar'; }
+};
+
+async function subirLogo(archivo) {
+  aviso('em-aviso', '');
+  if (!archivo) return;
+  if (!/^image\/(png|jpeg)$/.test(archivo.type)) { aviso('em-aviso', 'El logotipo tiene que ser PNG (mejor, con fondo transparente) o JPG.'); return; }
+  if (archivo.size > LOGO_MAX) { aviso('em-aviso', 'Ese archivo pasa de 5 MB. Uno de unos 1200 px de ancho basta y sobra.'); return; }
+  const zona = $('logo-soltar');
+  zona.classList.add('encima');
+  try {
+    const r = await fetch(`${API}/orgs/${encodeURIComponent(ORG.id)}/empresa/logo`, {
+      method: 'PUT', headers: { 'Content-Type': archivo.type }, body: archivo, credentials: 'include',
+    });
+    let cuerpo = null;
+    try { cuerpo = await r.json(); } catch { /* no vino JSON */ }
+    if (!r.ok || !cuerpo?.ok) {
+      if (cuerpo?.error === 'datos_invalidos') throw new Error('La API no lo aceptó: tiene que ser un PNG o JPG de verdad, de hasta 5 MB.');
+      throw new ErrorApi(cuerpo?.error ?? 'sin_respuesta', r.status, cuerpo?.detalle);
+    }
+    pintarEmpresa(cuerpo.data);
+    aviso('em-aviso', 'Listo: éste es el logotipo de los documentos de la suite.', 'bien');
+  } catch (e) {
+    aviso('em-aviso', e.message);
+  } finally { zona.classList.remove('encima'); $('logo-archivo').value = ''; }
+}
+
+$('logo-archivo').onchange = (ev) => subirLogo(ev.target.files?.[0]);
+{
+  const zona = $('logo-soltar');
+  zona.addEventListener('dragover', (ev) => { ev.preventDefault(); zona.classList.add('encima'); });
+  zona.addEventListener('dragleave', () => zona.classList.remove('encima'));
+  zona.addEventListener('drop', (ev) => { ev.preventDefault(); zona.classList.remove('encima'); subirLogo(ev.dataTransfer?.files?.[0]); });
+  // Pegarlo: con la pantalla de la empresa abierta, Ctrl+V con una imagen
+  // copiada la sube. Fuera de ella, el pegado es de quien lo use.
+  document.addEventListener('paste', (ev) => {
+    if ($('v-empresa').hidden) return;
+    const archivo = [...(ev.clipboardData?.files ?? [])].find((f) => /^image\//.test(f.type));
+    if (archivo) { ev.preventDefault(); subirLogo(archivo); }
+  });
+}
+
+$('logo-quitar').onclick = async () => {
+  const b = $('logo-quitar');
+  // Dos piquetes: el primero pregunta. Quitarlo deja los documentos sin logotipo.
+  if (!b.dataset.seguro) { b.dataset.seguro = '1'; b.textContent = '¿Seguro? Los documentos se quedan sin logotipo'; return; }
+  b.disabled = true;
+  try {
+    pintarEmpresa(await pedir(`/orgs/${encodeURIComponent(ORG.id)}/empresa/logo`, { method: 'DELETE' }));
+    aviso('em-aviso', 'Se quitó el logotipo.', 'bien');
+  } catch (e) { aviso('em-aviso', e.message); }
+  finally { b.disabled = false; }
+};
+
 for (const b of document.querySelectorAll('#menu [data-ir]')) {
-  b.onclick = () => (b.dataset.ir === 'gente' ? irAGente() : irACambios());
+  b.onclick = () => (b.dataset.ir === 'gente' ? irAGente() : b.dataset.ir === 'empresa' ? irAEmpresa() : irACambios());
 }
 
 /* ─────────────── arranque ───────────────
