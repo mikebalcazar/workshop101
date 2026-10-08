@@ -15,3 +15,17 @@
   código al entrar), permisos finos dentro de cada app (el rol es por
   empresa), y la lista de apps por persona en `/yo` para que cada app pinte
   sólo lo suyo (la puerta ya la aplica).
+
+## 8-oct-2026 · el look de cost101
+
+Mike, 8-oct: «todas las plataformas (…) con el diseño look and feel de
+cost101 pero siguiendo los parámetros de tipografía y de logo de dash y
+quell». En `public/estilo.css`: en pantalla siempre oscuro (degradado azul,
+vidrio, botones redondos, menú activo y selector de empresa en píldora,
+diálogo de vidrio); al imprimir vuelven los claros y la barra no sale. La
+caja del logotipo de la empresa se queda blanca a propósito: ese logo va en
+documentos de papel. Tipografía igual (Cifras + Raleway locales, títulos en
+600; Sansation ya no se declara). Logo oficial `public/workshop101-claro.svg`
+en la barra (28 px) y en la entrada (36 px). Probado: dominio, entrada,
+atrás, versión y panel.spec contra el banco (79 de 79), y capturas a
+1440×900 y 390×844 sin desborde de página ni texto oscuro sobre oscuro.
