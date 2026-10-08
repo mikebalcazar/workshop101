@@ -52,7 +52,7 @@ export function apiFalsa() {
     ['u-cliente', { id: 'u-cliente', correo: 'cliente@ejemplo.mx', nombre: 'Familia Ramírez', creado_at: '2026-09-01T00:00:00Z' }],
   ]);
   const orgs = new Map([
-    ['demo', { id: 'demo', nombre: 'Demo', plan: 'prueba', apps: { dash: true, supply: true, quell: true, peek: true, cotizador: true, roster: false, nest: false }, moneda: 'MXN', activa: true, creado_at: '2026-09-01T00:00:00Z' }],
+    ['demo', { id: 'demo', nombre: 'Demo', plan: 'prueba', apps: { dash: true, supply: true, quell: true, peek: true, cotizador: true, investor: true, roster: false, nest: false }, moneda: 'MXN', activa: true, creado_at: '2026-09-01T00:00:00Z' }],
   ]);
   const miembros = new Map([['demo', [
     { org_id: 'demo', usuario_id: 'u-duena', rol: 'owner', apps: [], negocios: [] },
@@ -64,7 +64,7 @@ export function apiFalsa() {
   const sesiones = new Map();   // cookie → usuario_id
   const codigos = new Map();    // correo → codigo
   const accesos = new Map([['u-cliente', { org_id: 'demo', tipo: 'cliente', ref_id: 'c1' }]]);
-  const LLAVE = { dash101: 'dash', quell101: 'quell', peek101: 'peek', cotizador101: 'cotizador', cost101: 'cost', roster101: 'roster', nest101: 'nest' };
+  const LLAVE = { dash101: 'dash', quell101: 'quell', peek101: 'peek', cotizador101: 'cotizador', cost101: 'cost', investor101: 'investor', roster101: 'roster', nest101: 'nest' };
   const PANELES = new Set(['master101', 'workshop101', 'suite101']);
   const supers = new Set();
   const boletos = new Map();   // boleto de Google → cookie de sesión, un solo uso

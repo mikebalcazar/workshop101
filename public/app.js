@@ -39,8 +39,20 @@ export const APPS = [
    * abajo se recorta con las apps de la empresa (`appsPrendidas`). Quien entra
    * ve lo que la empresa PAGA por material y mano de obra; por eso se da
    * persona por persona. */
-  ['cotizador', 'quote101'], ['cost', 'cost101 (costos de obra)'], ['roster', 'roster101'], ['nest', 'nest101'],
+  ['cotizador', 'quote101'], ['cost', 'cost101 (costos de obra)'],
+  /* patron101 (8-oct-2026, por dentro investor101, llave `investor`): rondas
+   * de inversión y préstamos a la empresa. Licencia propia, como cost101. La
+   * API sólo deja manejarla a dueño y administración (rutas/inversion.ts:
+   * un socio u oficina entra sólo si además presta, y eso no depende de esta
+   * casilla). Mike, 8-oct, con botones: la casilla sale sólo en dueño y
+   * administración (`SOLO_QUIEN_DIRIGE`). */
+  ['investor', 'patron101 (inversionistas)'],
+  ['roster', 'roster101'], ['nest', 'nest101'],
 ];
+
+/** Apps que sólo maneja quien dirige: su casilla no se ofrece a socio ni a
+ *  oficina, ni en su fila ni en el alta. */
+const SOLO_QUIEN_DIRIGE = new Set(['investor']);
 
 const ROLES = { owner: 'dueño', admin: 'administración', socio: 'socio', staff: 'oficina' };
 
@@ -425,6 +437,8 @@ async function abrirEmpresa(id) {
 /* ─────────────── gente ─────────────── */
 
 const appsPrendidas = () => APPS.filter(([k]) => ORG?.apps?.[k] === true);
+/** Las prendidas que se le ofrecen a alguien con ese rol. */
+const appsParaRol = (rol) => appsPrendidas().filter(([k]) => !SOLO_QUIEN_DIRIGE.has(k) || rol === 'owner' || rol === 'admin');
 const puedoTocarDuenos = () => MI_ROL === 'owner' || MI_ROL === 'super';
 
 async function verGente() {
@@ -433,14 +447,18 @@ async function verGente() {
   $('g-nombre').textContent = ORG.nombre;
   $('g-sub').textContent = MI_ROL === 'super' ? 'Como superadmin de la suite ves esta empresa como su dueño.' : `Entraste como ${ROLES[MI_ROL] ?? MI_ROL}.`;
   aviso('g-aviso', '');
-  pintarAppsDelAlta();
   $('p-rol').innerHTML = (puedoTocarDuenos() ? ['owner', 'admin', 'socio', 'staff'] : ['admin', 'socio', 'staff'])
     .map((r) => `<option value="${r}"${r === 'socio' ? ' selected' : ''}>${ROLES[r]}</option>`).join('');
+  pintarAppsDelAlta();
   await cargarGente();
 }
 
+/* Cambiar el rol del alta vuelve a pintar las casillas: patron101 sólo sale
+ * para dueño y administración. */
+$('p-rol').onchange = () => pintarAppsDelAlta();
+
 function pintarAppsDelAlta() {
-  const prendidas = appsPrendidas();
+  const prendidas = appsParaRol($('p-rol').value);
   $('p-apps').innerHTML = '<legend>Apps a las que entra</legend>' + (prendidas.length
     ? `<div class="apps-fila">${prendidas.map(([k, n]) => `<label><input type="checkbox" data-app="${k}" checked> ${n}</label>`).join('')}</div>`
     : '<p class="nota">La empresa no tiene ninguna app prendida todavía; eso se prende desde la suite.</p>');
@@ -481,7 +499,7 @@ function pintarGente() {
       <td class="mono">${esc(m.correo)}${soyYo ? '<span class="tu">(tú)</span>' : ''}</td>
       <td>${esc(m.nombre ?? '')}</td>
       <td><select class="rol" data-uid="${esc(m.usuario_id)}"${cerrada ? ' disabled' : ''}>${roles.map((r) => `<option value="${r}"${r === m.rol ? ' selected' : ''}>${ROLES[r] ?? r}</option>`).join('')}</select></td>
-      <td><div class="apps-fila">${prendidas.map(([k, n]) => `<label><input type="checkbox" data-uid="${esc(m.usuario_id)}" data-app="${k}"${todas || m.apps.includes(k) ? ' checked' : ''}${cerrada ? ' disabled' : ''}> ${n}</label>`).join('')}${!prendidas.length ? '<span class="nota">—</span>' : ''}</div></td>
+      <td><div class="apps-fila">${appsParaRol(m.rol).map(([k, n]) => `<label><input type="checkbox" data-uid="${esc(m.usuario_id)}" data-app="${k}"${todas || m.apps.includes(k) ? ' checked' : ''}${cerrada ? ' disabled' : ''}> ${n}</label>`).join('')}${!prendidas.length ? '<span class="nota">—</span>' : ''}</div></td>
       <td class="fecha">${m.ultima_entrada ? esc(cuando(m.ultima_entrada)) : 'nadie aún'}</td>
       <td>${cerrada ? '' : `<div class="acciones"><button class="btn suave chico" data-editar="${esc(m.usuario_id)}">Editar</button><button class="btn suave chico" data-quitar="${esc(m.usuario_id)}" data-correo="${esc(m.correo)}">Quitar</button></div>`}</td>
     </tr>`;
