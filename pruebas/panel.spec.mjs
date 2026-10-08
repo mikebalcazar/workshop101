@@ -433,7 +433,22 @@ async function escritorio(navegador) {
    * sea «todas las de la empresa», así que sus casillas SON las prendidas.
    * Comparar el alta contra ella es comparar dos lugares de la pantalla que
    * tienen que decir lo mismo. */
-  const ofrecidas = await pagina.locator('#p-apps input[data-app]').evaluateAll((l) => l.map((c) => c.dataset.app).sort());
+  /* patron101 (8-oct-2026, llave `investor`) sólo se ofrece a dueño y
+   * administración (decisión de Mike con botones). La empresa de esta prueba
+   * la tiene prendida —en staging, demo la trae desde la migración 0025—, así
+   * que con «socio» en el alta no sale y con «administración» sí. La fila de
+   * referencia es de administración: se compara contra el alta en ese rol. */
+  const conRol = async (rol) => {
+    await pagina.selectOption('#p-rol', rol);
+    return pagina.locator('#p-apps input[data-app]').evaluateAll((l) => l.map((c) => c.dataset.app).sort());
+  };
+  rev(!(await conRol('socio')).includes('investor'), 'patron101 no se le ofrece a un socio en el alta');
+  rev(!(await conRol('staff')).includes('investor'), 'ni a oficina');
+  const ofrecidas = await conRol('admin');
+  rev(ofrecidas.includes('investor'), 'a administración sí se le ofrece patron101', JSON.stringify(ofrecidas));
+  const enLaSocia = await fila(pagina, CONTRA_STAGING ? 'socia-prueba@ejemplo.mx' : 'socia@ejemplo.mx').locator('input[data-app]').evaluateAll((l) => l.map((c) => c.dataset.app));
+  rev(enLaSocia.length === 0 || !enLaSocia.includes('investor'), 'y en la fila de un socio no sale su casilla', JSON.stringify(enLaSocia));
+  await pagina.selectOption('#p-rol', 'socio');
   /* cost101 (7-oct-2026) es una app con licencia: la empresa de esta prueba no
    * la tiene prendida, así que NO se ofrece para repartir. Si saliera, alguien
    * le «daría» a su gente una app que la empresa no tiene. */

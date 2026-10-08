@@ -29,3 +29,12 @@ documentos de papel. Tipografía igual (Cifras + Raleway locales, títulos en
 en la barra (28 px) y en la entrada (36 px). Probado: dominio, entrada,
 atrás, versión y panel.spec contra el banco (79 de 79), y capturas a
 1440×900 y 390×844 sin desborde de página ni texto oscuro sobre oscuro.
+
+**8-oct (noche), patron101 persona por persona.** Encargo del chat que
+construyó patron101. Llave `investor` en `APPS` («patron101 (inversionistas)»);
+sale sólo si la empresa la tiene prendida. Mike decidió con botones que la
+casilla sale SÓLO en dueño y administración (`SOLO_QUIEN_DIRIGE` +
+`appsParaRol`): la API no deja manejarla a socio ni a oficina
+(rutas/inversion.ts), y uno de ellos que preste entra como inversionista sin
+depender de esta casilla. El alta repinta las casillas al cambiar el rol. El
+banco falso trae `investor` prendida en demo, como staging (migración 0025).
