@@ -169,7 +169,7 @@ async function recorrido(navegador) {
   const org = CONTRA_STAGING ? ORG : 'demo';
   if (CONTRA_STAGING) {
     galletaSuper = await galletaDe(SUPER);
-    const nueva = await json(`${API_DIRECTA}/admin/orgs`, { method: 'POST', body: { id: ORG, nombre: `Prueba ${hhmm}`, apps: { dash: true, quell: true, peek: true, cotizador: false, roster: false, nest: false } }, cabeceras: { Cookie: galletaSuper } });
+    const nueva = await json(`${API_DIRECTA}/admin/orgs`, { method: 'POST', body: { id: ORG, nombre: `Prueba ${hhmm}`, apps: { dash: true, quell: true, peek: true, cotizador: false, investor: true, roster: false, nest: false } }, cabeceras: { Cookie: galletaSuper } });
     rev(nueva.estado === 201, `se crea la empresa de prueba ${ORG} por la API`, `${nueva.estado} ${nueva.cuerpo?.error ?? ''}`);
     for (const [correo, rol, apps] of [['admi-prueba@ejemplo.mx', 'admin', []], ['socia-prueba@ejemplo.mx', 'socio', ['dash']], ['oficina-prueba@ejemplo.mx', 'staff', ['quell', 'peek']]]) {
       const r = await json(`${API_DIRECTA}/admin/orgs/${ORG}/miembros`, { method: 'POST', body: { correo, rol, apps, nombre: correo.split('@')[0] }, cabeceras: { Cookie: galletaSuper } });
