@@ -169,7 +169,7 @@ async function recorrido(navegador) {
   const org = CONTRA_STAGING ? ORG : 'demo';
   if (CONTRA_STAGING) {
     galletaSuper = await galletaDe(SUPER);
-    const nueva = await json(`${API_DIRECTA}/admin/orgs`, { method: 'POST', body: { id: ORG, nombre: `Prueba ${hhmm}`, apps: { dash: true, quell: true, peek: true, cotizador: false, investor: true, roster: false, nest: false } }, cabeceras: { Cookie: galletaSuper } });
+    const nueva = await json(`${API_DIRECTA}/admin/orgs`, { method: 'POST', body: { id: ORG, nombre: `Prueba ${hhmm}`, apps: { dash: true, quell: true, peek: true, cotizador: false, investor: true, bill: true, roster: false, nest: false } }, cabeceras: { Cookie: galletaSuper } });
     rev(nueva.estado === 201, `se crea la empresa de prueba ${ORG} por la API`, `${nueva.estado} ${nueva.cuerpo?.error ?? ''}`);
     for (const [correo, rol, apps] of [['admi-prueba@ejemplo.mx', 'admin', []], ['socia-prueba@ejemplo.mx', 'socio', ['dash']], ['oficina-prueba@ejemplo.mx', 'staff', ['quell', 'peek']]]) {
       const r = await json(`${API_DIRECTA}/admin/orgs/${ORG}/miembros`, { method: 'POST', body: { correo, rol, apps, nombre: correo.split('@')[0] }, cabeceras: { Cookie: galletaSuper } });
@@ -442,10 +442,17 @@ async function escritorio(navegador) {
     await pagina.selectOption('#p-rol', rol);
     return pagina.locator('#p-apps input[data-app]').evaluateAll((l) => l.map((c) => c.dataset.app).sort());
   };
-  rev(!(await conRol('socio')).includes('investor'), 'patron101 no se le ofrece a un socio en el alta');
+  const aLaSocia = await conRol('socio');
+  rev(!aLaSocia.includes('investor'), 'patron101 no se le ofrece a un socio en el alta');
   rev(!(await conRol('staff')).includes('investor'), 'ni a oficina');
+  /* bill101 (9-oct-2026, llave `bill`) es lo contrario: la API deja leer lo
+   * fiscal a cualquiera de la empresa que vea dinero, así que se ofrece
+   * también a un socio. La empresa de esta prueba la tiene prendida (en
+   * staging, demo desde d1/0026). */
+  rev(aLaSocia.includes('bill'), 'bill101 sí se le ofrece a un socio en el alta', JSON.stringify(aLaSocia));
   const ofrecidas = await conRol('admin');
   rev(ofrecidas.includes('investor'), 'a administración sí se le ofrece patron101', JSON.stringify(ofrecidas));
+  rev(ofrecidas.includes('bill'), 'y bill101 también', JSON.stringify(ofrecidas));
   const enLaSocia = await fila(pagina, CONTRA_STAGING ? 'socia-prueba@ejemplo.mx' : 'socia@ejemplo.mx').locator('input[data-app]').evaluateAll((l) => l.map((c) => c.dataset.app));
   rev(enLaSocia.length === 0 || !enLaSocia.includes('investor'), 'y en la fila de un socio no sale su casilla', JSON.stringify(enLaSocia));
   await pagina.selectOption('#p-rol', 'socio');
