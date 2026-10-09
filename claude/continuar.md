@@ -38,3 +38,14 @@ casilla sale SÓLO en dueño y administración (`SOLO_QUIEN_DIRIGE` +
 (rutas/inversion.ts), y uno de ellos que preste entra como inversionista sin
 depender de esta casilla. El alta repinta las casillas al cambiar el rol. El
 banco falso trae `investor` prendida en demo, como staging (migración 0025).
+
+**9-oct, bill101 se da persona por persona.** Encargo del chat que construyó
+bill101 (encargo-bill101.md, trabajo 3). La lista de apps gana «bill101
+(facturas e impuestos)», llave `bill`; sale sólo en la empresa que la tiene
+prendida, como cost101. NO va en `SOLO_QUIEN_DIRIGE`: en
+`suite101-api/src/rutas/fiscal.ts` leer es `puedeLeer` (no cliente, no
+inversionista, ve dinero; todo miembro ve dinero) y lo que cambia la cuenta
+de los impuestos lo cuida `administra` (owner/admin o contador) ruta por
+ruta. Así que se ofrece también a socio y oficina. La empresa `demo` del
+banco falso y la que crea panel.spec en staging nacen con `bill: true`
+(lección de #18).

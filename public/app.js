@@ -47,6 +47,14 @@ export const APPS = [
    * casilla). Mike, 8-oct, con botones: la casilla sale sólo en dueño y
    * administración (`SOLO_QUIEN_DIRIGE`). */
   ['investor', 'patron101 (inversionistas)'],
+  /* bill101 (9-oct-2026, llave `bill`): las facturas que la empresa emite y
+   * recibe, su liga con el dinero de dash101 y los impuestos de cada mes.
+   * Licencia propia, como cost101. NO va en `SOLO_QUIEN_DIRIGE`: la API deja
+   * leer lo fiscal a cualquiera de la empresa que vea dinero, y lo que sólo
+   * cambia quien dirige o el contador (coeficiente, pagos de impuestos, cómo
+   * se deduce una factura) lo cuida ruta por ruta (rutas/fiscal.ts:
+   * `puedeLeer` y `administra`). */
+  ['bill', 'bill101 (facturas e impuestos)'],
   ['roster', 'roster101'], ['nest', 'nest101'],
 ];
 
