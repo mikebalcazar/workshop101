@@ -19,13 +19,19 @@ compatibility_date = "2026-09-01"
 # apaga workers.dev (le pasó a peek101). Las dos direcciones se quedan.
 workers_dev = true
 routes = [
-  { pattern = "workshop101.taller101.com", custom_domain = true }
+  { pattern = "workshop101.taller101.com", custom_domain = true },
+  # 11-oct-2026 · suite101.app es la marca (Mike: «taller101 será una marca de
+  # FORESPOT»). Ésta es la buena; la de arriba manda aquí.
+  { pattern = "workshop.suite101.app", custom_domain = true }
 ]
 
 # La dirección de workers.dev manda al dominio (Mike, 25-sep: «redirigir, no
 # apagar»). Sólo producción: `vars` no se hereda y staging no lleva esto.
 [vars]
-DOMINIO_PROPIO = "workshop101.taller101.com"
+DOMINIO_PROPIO = "workshop.suite101.app"
+# 11-oct-2026 · la dirección de antes (taller101.com) también manda aquí, con
+# las mismas reglas que workers.dev. Lista separada por comas.
+DOMINIO_ANTERIOR = "workshop101.taller101.com"
 
 # La interfaz, tal cual está en `public/`: un HTML, un JS, un CSS y las
 # fuentes. Sin empaquetador. `run_worker_first` deja que `/s101/*` llegue al

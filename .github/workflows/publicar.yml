@@ -99,6 +99,12 @@ jobs:
       - name: Qué ofrece la pantalla de entrada
         run: node pruebas/entrada.mjs
 
+      # Las direcciones viejas (workers.dev y, desde el 11-oct, la de
+      # taller101.com) mandan al dominio propio con 301; /s101/* y lo que no
+      # es lectura no se tocan. Sin red: va antes de publicar.
+      - name: Las direcciones viejas mandan al dominio
+        run: node pruebas/dominio.mjs
+
       # El «atrás» del navegador, medido contando entradas del historial. Un
       # `pushState` de más obliga a picar atrás dos veces y uno de menos saca
       # de la app: las dos se ven igual de bien en la pantalla. No necesita
@@ -215,8 +221,9 @@ jobs:
           npx wrangler deploy | tee /tmp/prod.txt
           grep -qE 'https://[a-z0-9.-]+\.workers\.dev' /tmp/prod.txt || { echo 'no pude sacar la liga de la salida de wrangler' >&2; exit 1; }
           # Producción se mide en su dominio: workers.dev manda para allá
-          # desde el 25-sep (DOMINIO_PROPIO en wrangler.toml).
-          url=https://workshop101.taller101.com
+          # desde el 25-sep (DOMINIO_PROPIO en wrangler.toml), y desde el 11-oct
+          # el dominio es workshop.suite101.app.
+          url=https://workshop.suite101.app
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "producción publicada: $url (y en workers.dev, que redirige)"
 
@@ -227,6 +234,10 @@ jobs:
         run: |
           set -u
           exec > >(tee /tmp/medido-prod.txt) 2>&1
+          # Un custom domain recién colgado tarda en tener certificado: antes de
+          # medir, se espera a que conteste (hasta dos minutos).
+          url="$PROD"
+          for i in $(seq 1 24); do curl -sf -o /dev/null "$url" && break; sleep 5; done
           node scripts/medir.mjs
 
       # Aquí está el canal de vuelta. El log de Actions no sirve: descargarlo
