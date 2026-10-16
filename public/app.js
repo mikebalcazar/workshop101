@@ -380,10 +380,12 @@ $('nomanda-salir').onclick = salir;
  * que enseñar. Con una sola empresa se abre directo; con varias, el selector
  * de la barra. */
 
-async function entrar() {
+/** `yo`, si ya se pidió al abrir, no se vuelve a pedir: cada /yo es un viaje
+ *  a la suite (16-oct-2026: se pedía dos veces seguidas al arrancar). */
+async function entrar(yo = null) {
   mostrar('v-cargando');
   try {
-    YO = await pedir('/yo');
+    YO = yo || await pedir('/yo');
   } catch (e) {
     $('err-clave').textContent = e.message;
     mostrar(correo ? 'v-clave' : 'v-correo');
@@ -429,6 +431,10 @@ async function abrirEmpresa(id) {
   $('empresa').value = id;
   MI_ROL = mia.rol;
   mostrar('v-cargando');
+  // La gente sale A LA PAR de la empresa, no después (16-oct-2026): son dos
+  // viajes que no dependen uno del otro.
+  const gente = pedir(`/admin/orgs/${encodeURIComponent(id)}/miembros`);
+  gente.catch(() => { /* lo dice cargarGente */ });
   try {
     ORG = await pedir(`/orgs/${encodeURIComponent(id)}`);
   } catch (e) {
@@ -439,7 +445,7 @@ async function abrirEmpresa(id) {
    * entrada que ya hay. Si apilara, el primer «atrás» del día se quedaría
    * dando vueltas en la misma pantalla. */
   sellar(HONDURA.seccion, 'gente');
-  await verGente();
+  await verGente(gente);
 }
 
 /* ─────────────── gente ─────────────── */
@@ -449,7 +455,7 @@ const appsPrendidas = () => APPS.filter(([k]) => ORG?.apps?.[k] === true);
 const appsParaRol = (rol) => appsPrendidas().filter(([k]) => !SOLO_QUIEN_DIRIGE.has(k) || rol === 'owner' || rol === 'admin');
 const puedoTocarDuenos = () => MI_ROL === 'owner' || MI_ROL === 'super';
 
-async function verGente() {
+async function verGente(gente = null) {
   mostrar('v-gente');
   $('g-id').textContent = `empresa · ${ORG.id}`;
   $('g-nombre').textContent = ORG.nombre;
@@ -458,7 +464,7 @@ async function verGente() {
   $('p-rol').innerHTML = (puedoTocarDuenos() ? ['owner', 'admin', 'socio', 'staff'] : ['admin', 'socio', 'staff'])
     .map((r) => `<option value="${r}"${r === 'socio' ? ' selected' : ''}>${ROLES[r]}</option>`).join('');
   pintarAppsDelAlta();
-  await cargarGente();
+  await cargarGente(gente);
 }
 
 /* Cambiar el rol del alta vuelve a pintar las casillas: patron101 sólo sale
@@ -472,10 +478,11 @@ function pintarAppsDelAlta() {
     : '<p class="nota">La empresa no tiene ninguna app prendida todavía; eso se prende desde la suite.</p>');
 }
 
-async function cargarGente() {
+/** `gente`: la lectura que ya salió al abrir la empresa, si la hay. */
+async function cargarGente(gente = null) {
   $('g-filas').innerHTML = '<tr><td colspan="6" class="nota">Cargando…</td></tr>';
   try {
-    const d = await pedir(`/admin/orgs/${encodeURIComponent(ORG.id)}/miembros`);
+    const d = await (gente || pedir(`/admin/orgs/${encodeURIComponent(ORG.id)}/miembros`));
     GENTE = d.filas.slice().sort((a, b) => ordenRol(a.rol) - ordenRol(b.rol) || a.correo.localeCompare(b.correo));
     pintarGente();
   } catch (e) {
@@ -811,9 +818,9 @@ for (const b of document.querySelectorAll('#menu [data-ir]')) {
       return;
     }
   }
+  let yo;
   try {
-    await pedir('/yo');
-    await entrar();
+    yo = await pedir('/yo');
   } catch {
     /* La cookie no vive: se pide el correo, pero SÓLO si la persona no se
      * adelantó. Con red lenta, /yo contesta después de que ya tecleó su correo
@@ -822,5 +829,7 @@ for (const b of document.querySelectorAll('#menu [data-ir]')) {
      * del dedo. Medido en peek101 el 18-sep-2026 desde el sandbox (/yo tarda
      * ~700 ms ahí); en el runner contesta antes de que nadie teclee. */
     if (!correo) mostrar('v-correo');
+    return;
   }
+  await entrar(yo);
 })();

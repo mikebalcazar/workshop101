@@ -424,6 +424,26 @@ async function escritorio(navegador) {
   await pagina.waitForSelector('#v-gente:not([hidden])', { timeout: 20000 });
   if (CONTRA_STAGING) { await pagina.selectOption('#empresa', ORG); await pagina.waitForFunction((o) => document.getElementById('g-id').textContent.includes(o), ORG, { timeout: 15000 }); }
   await pagina.waitForSelector('#g-filas td.mono', { timeout: 15000 });
+
+  /* 16-oct-2026 · Al abrir con la sesión viva, /yo una sola vez (antes dos
+   * seguidas) y la gente a la par de la empresa, no después. */
+  if (!CONTRA_STAGING) {
+    const vistos = [];
+    const oye = (r) => { const u = new globalThis.URL(r.url()); if (u.pathname.startsWith('/s101/')) vistos.push(u.pathname); };
+    const acabados = new Map();
+    let paso = 0;
+    const acaba = (r) => acabados.set(new globalThis.URL(r.url()).pathname, ++paso);
+    const salidas = new Map();
+    const sale = (r) => { const u = new globalThis.URL(r.url()).pathname; if (!salidas.has(u)) salidas.set(u, ++paso); };
+    pagina.on('request', oye); pagina.on('request', sale); pagina.on('requestfinished', acaba);
+    await pagina.reload();
+    await pagina.waitForSelector('#g-filas td.mono', { timeout: 15000 });
+    pagina.off('request', oye); pagina.off('request', sale); pagina.off('requestfinished', acaba);
+    rev(vistos.filter((r) => r === '/s101/yo').length === 1, 'al abrir, /yo una sola vez', vistos.join(', '));
+    const org = [...salidas.keys()].find((r) => /^\/s101\/orgs\/[^/]+$/.test(r));
+    const gente = [...salidas.keys()].find((r) => r.endsWith('/miembros'));
+    rev(!!org && !!gente && salidas.get(gente) < acabados.get(org), 'la gente sale a la par de la empresa, no después');
+  }
   rev((await pagina.locator('#g-tabla thead th').count()) === 6, 'seis columnas: correo, nombre, rol, apps, última entrada y acciones');
   /* Cuáles son sale de la pantalla misma, no de un número escrito aquí: el
    * 21-sep agregar `supply` rompió esta línea sin que nada estuviera mal, y
